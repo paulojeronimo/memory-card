@@ -1,0 +1,86 @@
+#!/bin/bash
+set +x
+set -e
+
+BASE_DIR=`cd $(dirname "$0"); pwd`
+
+CONFIG=$BASE_DIR/config
+[ -f "$CONFIG" ] || CONFIG=$CONFIG.sample
+source "$CONFIG" || exit $?
+
+_remove_unwanted_macos_files() {
+  find -L . -type f \( -name .DS_Store -o -name '._*' \) -print0 | xargs -0 rm
+}
+
+_create_links() {
+  local link
+  local name
+  local cmd="ln -s"
+
+  for link in "${LINKS[@]}"
+  do
+    name=$(echo "$link"|cut -d'|' -f2)
+    link=$(echo "$link"|cut -d'|' -f1)
+    $DEBUG && cmd="echo $cmd"
+    [ -L "$name" ] || $cmd "$link" "$name"
+  done
+}
+
+_rsync() {
+  local cmd="rsync"
+
+  $DEBUG && cmd="echo $cmd"
+  $cmd -r -L --progress --modify-window=1 --size-only --update --delete "$@"
+}
+
+_sync() {
+  local direction=$1
+  local d
+
+  _remove_unwanted_macos_files
+  _create_links
+
+  # Syncronized files include symbolic links and dirs (inside $MC_DIR/files) 
+  for d in $(find . -maxdepth 1 \( \( -type l -o -type d \) -a ! -name . \))
+  do
+    d=`basename $d`
+    cd $d
+    case $direction in
+      to) _rsync . $MC_DIR/$d/;;
+      from) _rsync $MC_DIR/$d/* .
+    esac
+    cd - &> /dev/null
+  done
+}
+
+sync_to() {
+  _sync to
+}
+
+sync_from() {
+  _sync from
+}
+
+main() {
+  local op=$1
+
+  cd "$BASE_DIR"
+
+  mkdir -p files && cd $_
+
+  if ! [ -d "$MC_DIR" ]
+  then
+    echo "Directory \"$MC_DIR\" not found (or mounted)!"
+    exit 1
+  fi
+
+  if ! type sync_$op &> /dev/null
+  then
+    echo "Usage: `basename $0` <to|from>"
+    exit
+  fi
+
+  sync_$op
+}
+
+main "$@"

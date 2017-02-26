@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# MC is an acronym to "Memory Card". Usually, it is mounted by MacOS.
+MC_DIR=/Volumes/pj-memory
+
+# Directory with files to be syncronized with $MC_DIR (relative to this dir)
+# PS: we don't want our files inside an git repo so ... it's configured in .gitignore to ;)
+SYNC_DIR=files
+
+# Debug is disabled by default.
+# You can enable debug by calling this script using this form:
+#   DEBUG=true ./sync
+DEBUG=${DEBUG:-false}
+
+# Links pairs (file|link). They are piped (|) separated.
+LINKS=(
+"../../Pictures/memory-card/DCIM|DCIM"
+"../../Documents/memory-card|Documents"
+"../../Movies/memory-card|Movies"
+"../../Music/memory-card|Music"
+)
