@@ -8,7 +8,7 @@ CONFIG=$BASE_DIR/config
 [ -f "$CONFIG" ] || CONFIG=$CONFIG.sample
 source "$CONFIG" || exit $?
 
-_remove_unwanted_macos_files() {
+_remove_unwanted() {
   find -L . -type f \( -name .DS_Store -o -name '._*' \) -print0 | xargs -0 rm
 }
 
@@ -17,10 +17,14 @@ _create_links() {
   local name
   local cmd="ln -s"
 
+  mkdir -p files && cd $_
+
   for link in "${LINKS[@]}"
   do
     name=$(echo "$link"|cut -d'|' -f2)
     link=$(echo "$link"|cut -d'|' -f1)
+    # http://bit.ly/2n9vYe1
+    [ ${link:0:1} = \~ ] && link=${link/#\~/$HOME}
     $DEBUG && cmd="echo $cmd"
     [ -L "$name" ] || $cmd "$link" "$name"
   done
@@ -37,8 +41,14 @@ _sync() {
   local direction=$1
   local d
 
-  _remove_unwanted_macos_files
+  _remove_unwanted
   _create_links
+
+  if ! [ -d "$MC_DIR" ]
+  then
+    echo "Directory \"$MC_DIR\" not found (or mounted)!"
+    exit 1
+  fi
 
   # Syncronized files include symbolic links and dirs (inside $MC_DIR/files) 
   for d in $(find . -maxdepth 1 \( \( -type l -o -type d \) -a ! -name . \))
@@ -53,34 +63,26 @@ _sync() {
   done
 }
 
-sync_to() {
-  _sync to
-}
-
-sync_from() {
-  _sync from
-}
-
 main() {
   local op=$1
 
   cd "$BASE_DIR"
 
-  mkdir -p files && cd $_
-
-  if ! [ -d "$MC_DIR" ]
+  # http://bit.ly/2moGr6N
+  if [[ $op =~ ^(to|from)$ ]]
   then
-    echo "Directory \"$MC_DIR\" not found (or mounted)!"
-    exit 1
+    _sync $op
+    exit $?
   fi
 
-  if ! type sync_$op &> /dev/null
+  if ! type _$op &> /dev/null
   then
-    echo "Usage: `basename $0` <to|from>"
+    echo "Usage: `basename $0` <remove_unwanted|create_links|to|from>"
     exit
   fi
 
-  sync_$op
+  shift || true
+  _$op "$@"
 }
 
 main "$@"
