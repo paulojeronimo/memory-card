@@ -12,8 +12,8 @@ SYNC_DIR=files
 #   DEBUG=true ./sync
 DEBUG=${DEBUG:-false}
 
-# Links pairs (file|link). They are piped (|) separated.
-LINKS=(
+# Dir pairs (dir|link). They are piped (|) separated.
+DIRS=(
 "~/Pictures/memory-card/DCIM|DCIM"
 "~/Documents/memory-card|Documents"
 "~/Movies/memory-card|Movies"

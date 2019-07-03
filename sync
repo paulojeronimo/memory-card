@@ -1,5 +1,6 @@
 #!/bin/bash
-set +x
+DEBUG=${DEBUG:-false}
+$DEBUG && set -x || set +x
 set -e
 
 BASE_DIR=`cd $(dirname "$0"); pwd`
@@ -12,29 +13,26 @@ _remove_unwanted() {
   find -L . -type f \( -name .DS_Store -o -name '._*' \) -print0 | xargs -0 rm
 }
 
-_create_links() {
+_create_dirs() {
+  local line
+  local dir
   local link
-  local name
-  local cmd="ln -s"
 
   mkdir -p files && cd $_
 
-  for link in "${LINKS[@]}"
+  for line in "${DIRS[@]}"
   do
-    name=$(echo "$link"|cut -d'|' -f2)
-    link=$(echo "$link"|cut -d'|' -f1)
+    dir=$(echo "$line"|cut -d'|' -f1)
+    link=$(echo "$line"|cut -d'|' -f2)
     # http://bit.ly/2n9vYe1
-    [ ${link:0:1} = \~ ] && link=${link/#\~/$HOME}
-    $DEBUG && cmd="echo $cmd"
-    [ -L "$name" ] || $cmd "$link" "$name"
+    [ ${dir:0:1} = \~ ] && dir=${dir/#\~/$HOME} || true
+    [ -d "$dir" ] || mkdir -p "$dir"
+    [ -L "$link" ] || ln -s "$dir" "$link"
   done
 }
 
 _rsync() {
-  local cmd="rsync"
-
-  $DEBUG && cmd="echo $cmd"
-  $cmd -r -L --progress --modify-window=1 --size-only --update --delete "$@"
+  rsync -r -L --progress --modify-window=1 --size-only --update --delete "$@"
 }
 
 _sync() {
@@ -42,7 +40,7 @@ _sync() {
   local d
 
   _remove_unwanted
-  _create_links
+  _create_dirs
 
   if ! [ -d "$MC_DIR" ]
   then
@@ -77,7 +75,7 @@ main() {
 
   if ! type _$op &> /dev/null
   then
-    echo "Usage: `basename $0` <remove_unwanted|create_links|to|from>"
+    echo "Usage: `basename $0` <remove_unwanted|create_dirs|to|from>"
     exit
   fi
 
